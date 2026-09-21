@@ -7,3 +7,10 @@ __pycache__/
 docs/superpowers/
 eval/transcripts/
 dist/
+
+# terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log

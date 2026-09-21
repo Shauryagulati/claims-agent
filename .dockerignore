@@ -12,3 +12,6 @@ dist/
 .pytest_cache/
 .DS_Store
 *.zip
+**/.terraform
+infra/
+*.tfstate*
