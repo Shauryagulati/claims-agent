@@ -1,0 +1,51 @@
+[
+  {
+    "party_id": "PH-4021",
+    "name": "Nadia Okonkwo",
+    "policy_number": "POL-3318",
+    "dob": "1987-06-09",
+    "id_type": "ssn_last4",
+    "id_last4": "2907",
+    "phone": "+14155550182",
+    "email": "nadia@email.com"
+  },
+  {
+    "party_id": "PH-4007",
+    "name": "Tomas Ribeiro",
+    "policy_number": "POL-5502",
+    "dob": "1992-11-14",
+    "id_type": "ssn_last4",
+    "id_last4": "6134",
+    "phone": "+14155550119",
+    "email": "tomas.ribeiro@email.com"
+  },
+  {
+    "party_id": "PH-4033",
+    "name": "Irene Bauer",
+    "policy_number": "POL-7194",
+    "dob": "1961-04-22",
+    "id_type": "national_id_last4",
+    "id_last4": "8450",
+    "phone": "+14155550164",
+    "email": "irene.bauer@example.com"
+  },
+  {
+    "party_id": "PH-4045",
+    "name": "Ann Marie Kovac",
+    "name_aliases": [
+      "Annmarie Kovac"
+    ],
+    "policy_number": "POL-6620",
+    "dob": "1988-02-17",
+    "id_type": "national_id_last4",
+    "id_last4": "3271",
+    "phone": "+14155550187",
+    "phone_aliases": [
+      "+14155550187"
+    ],
+    "email": "a.kovac@gmail.com",
+    "email_aliases": [
+      "a.kovac@example.com"
+    ]
+  }
+]

@@ -1,0 +1,73 @@
+[
+  {
+    "case_id": "CLM-7710",
+    "party_id": "PH-4021",
+    "case_type": "healthcare",
+    "created_at": "2026-07-14",
+    "status": "denied",
+    "summary": "Healthcare claim denied due to missing lab result letter and visit summary",
+    "denial_reason": "the review file did not include the lab result letter and the treating clinician visit summary",
+    "documents_needed": [
+      "lab result letter",
+      "visit summary"
+    ],
+    "appeal_deadline": "2026-10-01",
+    "expected_reimbursement_amount": "0.00",
+    "allowed_max_amount": "1680.00",
+    "net_pay": "0.00",
+    "net_fee": "1680.00"
+  },
+  {
+    "case_id": "CLM-7412",
+    "party_id": "PH-4021",
+    "case_type": "healthcare",
+    "created_at": "2025-07-29",
+    "status": "closed",
+    "summary": "Healthcare claim settled",
+    "expected_reimbursement_amount": "915.00",
+    "allowed_max_amount": "950.00",
+    "net_pay": "915.00",
+    "net_fee": "950.00"
+  },
+  {
+    "case_id": "CLM-7203",
+    "party_id": "PH-4021",
+    "case_type": "dental",
+    "created_at": "2025-11-03",
+    "status": "closed",
+    "summary": "Dental claim completed",
+    "expected_reimbursement_amount": "510.00",
+    "allowed_max_amount": "540.00",
+    "net_pay": "510.00",
+    "net_fee": "540.00"
+  },
+  {
+    "case_id": "CLM-7802",
+    "party_id": "PH-4021",
+    "case_type": "auto",
+    "created_at": "2026-08-26",
+    "status": "open",
+    "summary": "Auto claim in progress",
+    "expected_reimbursement_amount": "2750.00",
+    "allowed_max_amount": "3050.00",
+    "net_pay": "0.00",
+    "net_fee": "3050.00"
+  },
+  {
+    "case_id": "CLM-7915",
+    "party_id": "PH-4033",
+    "case_type": "healthcare",
+    "created_at": "2026-09-14",
+    "status": "denied",
+    "summary": "Healthcare claim denied because the referral letter is missing",
+    "denial_reason": "the submitted materials did not include the treating provider referral letter",
+    "documents_needed": [
+      "referral letter"
+    ],
+    "appeal_deadline": "2026-10-29",
+    "expected_reimbursement_amount": "0.00",
+    "allowed_max_amount": "1375.00",
+    "net_pay": "0.00",
+    "net_fee": "1375.00"
+  }
+]

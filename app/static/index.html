@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{BRAND}} claims support</title>
+<style>
+  :root { --bg:#f5f6f8; --panel:#fff; --ink:#1c1f24; --muted:#6b7280; --line:#e5e7eb; --accent:#1f5eff; --me:#e8efff; --bot:#f1f3f5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:var(--bg); }
+  header { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0 auto 0 0; font-weight:600; }
+  .badge { font-size:12px; padding:3px 8px; border-radius:999px; background:#e0e7ff; color:#1e3a8a; font-weight:600; letter-spacing:.02em; }
+  select, button, textarea { font:inherit; }
+  button { padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel); cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  main { display:grid; grid-template-columns: 2fr 1fr; gap:16px; padding:16px; height:calc(100vh - 57px); }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; height:auto; } }
+  .chat, .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; display:flex; flex-direction:column; min-height:0; }
+  .log { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:78%; padding:10px 14px; border-radius:14px; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:var(--me); }
+  .msg.bot { align-self:flex-start; background:var(--bot); }
+  .msg.sys { align-self:center; color:var(--muted); font-size:13px; }
+  form { display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  textarea { flex:1; resize:none; padding:10px; border:1px solid var(--line); border-radius:8px; height:44px; }
+  .panel { overflow:auto; padding:14px; gap:12px; font-size:13px; }
+  .panel > * { flex-shrink:0; }  /* a flex column would otherwise squash the facts box */
+  .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:8px 0 4px; }
+  .kv { display:grid; grid-template-columns: auto 1fr; gap:2px 10px; }
+  .kv b { font-weight:500; color:var(--muted); }
+  pre { margin:0; padding:8px; background:#0f172a; color:#e2e8f0; border-radius:8px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  ul { margin:0; padding-left:18px; }
+  details summary { cursor:pointer; color:var(--accent); }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{BRAND}}, claims support</h1>
+  <span id="phase" class="badge">…</span>
+  <label class="muted">Scenario
+    <select id="scenario"><option value="default">default</option><option value="timeout">consent timeout</option></select>
+  </label>
+  <button id="new">New session</button>
+</header>
+<main>
+  <section class="chat">
+    <div id="log" class="log"></div>
+    <form id="form">
+      <textarea id="text" placeholder="Type a message…" autofocus></textarea>
+      <button id="send" class="primary" type="submit">Send</button>
+    </form>
+  </section>
+  <aside id="panel" class="panel"><span class="muted">Debug panel loads after the first message.</span></aside>
+</main>
+<script>
+  const $ = (s) => document.querySelector(s);
+  let sessionId = null;
+
+  function add(role, text) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + role; d.textContent = text;
+    $('#log').appendChild(d); $('#log').scrollTop = $('#log').scrollHeight;
+  }
+  function esc(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  async function newSession() {
+    $('#log').innerHTML = ''; $('#panel').innerHTML = '<span class="muted">Debug panel loads after the first message.</span>';
+    const r = await fetch('/api/session?scenario=' + $('#scenario').value, { method: 'POST' });
+    const j = await r.json();
+    sessionId = j.session_id; $('#phase').textContent = j.phase;
+    add('bot', j.greeting);
+  }
+
+  function renderPanel(s) {
+    const mem = Object.entries(s.memory).filter(([k, v]) => v !== null && v !== undefined && !(Array.isArray(v) && !v.length) && !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) && !['provenance','last_changed','invalidated_fields'].includes(k) && !(k === 'caller_role' && v === 'unknown'));
+    const prov = s.memory.provenance || {}, last = s.memory.last_changed || {};
+    const memRows = mem.map(([k, v]) => `<b>${esc(k)}</b><span>${esc(JSON.stringify(v))} ${prov[k] !== undefined ? '<span class="muted">t' + prov[k] + (last[k] && last[k] !== prov[k] ? '→t' + last[k] : '') + '</span>' : ''}</span>`).join('');
+    const inval = (s.memory.invalidated_fields || []).length ? `<div class="muted">invalidated: ${esc(s.memory.invalidated_fields.join(', '))}</div>` : '';
+    const dirs = s.last_directives.map(d => `<li><b>${esc(d.kind)}</b>${Object.keys(d.args).length ? ' <span class="muted">' + esc(JSON.stringify(d.args)) + '</span>' : ''}</li>`).join('');
+    const emails = s.email_log.map(e => `<details><summary>${esc(e.subject)} → ${esc(e.to)} (turn ${e.turn})</summary><pre>${esc(e.body)}</pre></details>`).join('') || '<span class="muted">none</span>';
+    $('#panel').innerHTML = `
+      <h2>Phase</h2><div><span class="badge">${esc(s.phase)}</span> ${s.sub_state ? '<span class="muted">' + esc(s.sub_state) + '</span>' : ''} <span class="muted">turn ${s.turn}, scenario ${esc(s.scenario)}</span></div>
+      <h2>Counters</h2><div class="kv">${Object.entries(s.counters).map(([k, v]) => `<b>${esc(k)}</b><span>${v}</span>`).join('')}<b>consent</b><span>${esc(s.consent_status ?? '—')}</span><b>awaiting_reconfirm</b><span>${s.awaiting_reconfirm}</span></div>
+      <h2>Memory</h2><div class="kv">${memRows || '<span class="muted">empty</span>'}</div>${inval}
+      <h2>Directives</h2><ul>${dirs || '<li class="muted">none</li>'}</ul>
+      <h2>Facts given to the responder</h2>${s.facts ? '<pre>' + esc(s.facts) + '</pre>' : '<span class="muted">none in this phase</span>'}
+      <h2>Effects</h2><div>${s.effects.length ? esc(JSON.stringify(s.effects)) : '<span class="muted">none</span>'}</div>
+      <h2>Email log</h2>${emails}
+      <h2>Last extraction</h2><details><summary>show</summary><pre>${esc(JSON.stringify(s.last_extraction, null, 2))}</pre></details>`;
+  }
+
+  async function send(text) {
+    add('user', text);
+    $('#send').disabled = true; $('#text').disabled = true;
+    try {
+      const r = await fetch(`/api/session/${sessionId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (!r.ok) { add('sys', 'Request failed: ' + r.status); return; }
+      const j = await r.json();
+      add('bot', j.reply); $('#phase').textContent = j.phase + (j.sub_state ? ' · ' + j.sub_state : '');
+      const s = await (await fetch(`/api/session/${sessionId}/state`)).json();
+      renderPanel(s);
+    } finally { $('#send').disabled = false; $('#text').disabled = false; $('#text').focus(); }
+  }
+
+  $('#form').addEventListener('submit', (e) => { e.preventDefault(); const t = $('#text').value.trim(); if (!t) return; $('#text').value = ''; send(t); });
+  $('#text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#form').requestSubmit(); } });
+  $('#new').addEventListener('click', newSession);
+  newSession();
+</script>
+</body>
+</html>

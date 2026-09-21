@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv/
+.git/
+.gitignore
+docs/
+eval/transcripts/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+*.zip

@@ -1,0 +1,158 @@
+{
+  "default_guidance": {
+    "en": "Start with the member portal or the claim upload link whenever it is available. Every file should be readable end to end and should carry the claim reference, the relevant dates, and the name of the clinic, facility, workshop, or office that issued it. When online upload is not an option, support can set up fax or postal submission instead."
+  },
+  "case_type_guidance": {
+    "healthcare": {
+      "en": "On medical claims, make sure the treating clinician or facility name appears on every page it applies to."
+    },
+    "auto": {
+      "en": "On motor claims, keep the repair quote and the scene photographs attached to the same incident, so the assessor can line the quoted work up against the visible damage."
+    }
+  },
+  "document_guidance": {
+    "incident scene photographs": {
+      "en": "Scene photographs should show the damage close up and include at least one wider frame that places the vehicle in the scene. Several angles help, and it is worth checking that the plate or another identifier is still readable in one of them."
+    },
+    "body shop repair quote": {
+      "en": "A repair quote needs the vehicle or claim reference, an itemised list of parts and labour, and the total quoted. The workshop's name and contact details are useful additions where the quote carries them."
+    },
+    "original lab result letter": {
+      "en": "A lab result letter needs the patient name, the sample or panel identifier, the date the sample was processed, and the signing scientist or laboratory stamp where one was issued. A scan is fine provided the letter is complete and every value is legible; if the plan insists on the original, the portal instructions or the support team will confirm the postal address."
+    },
+    "treating clinician visit summary": {
+      "en": "A visit summary needs the patient name, the date seen, the clinician's findings, and the treatment or follow-up that was advised. Send every page in a single PDF where you can."
+    }
+  },
+  "document_alternative_guidance": {
+    "default": {
+      "en": "When the exact item is not to hand, the first move is almost always to ask the issuing clinic, laboratory, facility, or workshop for a fresh copy. If all you have for now is a partial stand-in, send that along with a short note saying what is still outstanding, so the file can move forward without the missing item being lost track of."
+    },
+    "incident scene photographs": {
+      "en": "With no photographs from the scene, start with any later pictures of the damage, the repair quote, and any police or incident report tying the damage to the same event. A short written account giving the date, the location, and what happened is worth including. If none of that exists either, a claims representative should review what other evidence might be accepted."
+    },
+    "body shop repair quote": {
+      "en": "With no repair quote yet, the usual step is to ask the workshop for a written estimate itemising parts, labour, and the total. If the work has not been booked in, a quote from another approved workshop or an assessor's own estimate may still carry the file. If no estimate can be produced at all, a claims representative should go through the file with you."
+    },
+    "original lab result letter": {
+      "en": "If the lab result letter has gone missing, ask the hospital, laboratory, or treating clinician to reissue it or to send it across directly. A complete, legible scan or a certified copy usually serves well enough while the question of the original is settled. If the issuer cannot reproduce it and no readable copy exists anywhere, a claims representative should go through the manual options with you."
+    },
+    "treating clinician visit summary": {
+      "en": "If the full visit summary is slow to arrive, ask the practice for a discharge letter, a consultation note, or a re-sent copy of the record. Where the practice is willing to fax or upload it straight to us, that is usually the cleanest route. Failing all of those, a representative should look at which other clinical records might do instead."
+    }
+  },
+  "claim_followup_settings": {
+    "average_processing_time_after_submission": {
+      "en": "usually less than a week"
+    },
+    "human_review_after_document_alternatives_exhausted": {
+      "en": "Where the caller cannot produce the requested item or any reasonable stand-in, having already tried the clinician, laboratory, practice, workshop, or incident records, a claims representative should review the file for manual options."
+    }
+  },
+  "claim_followup_guidance": [
+    {
+      "topic": "missing_required_material_alternatives",
+      "intent_hints": [
+        "document_submission",
+        "next_steps",
+        "denial_question",
+        "general_claim_question",
+        "status_inquiry"
+      ],
+      "requires_documents": true,
+      "en": "On claim {case_id}, where the exact item requested cannot be produced, begin with a reissued copy or the nearest supporting records that still tie the claim back to the same treatment or incident. If none of the reasonable stand-ins can be obtained, a claims representative should review the file with you."
+    },
+    {
+      "topic": "submission_timing",
+      "intent_hints": [
+        "document_submission",
+        "next_steps",
+        "denial_question"
+      ],
+      "requires_documents": true,
+      "match_any": [
+        "how soon do i need to submit",
+        "how soon do i need to send",
+        "when do i need to submit",
+        "when do i need to send",
+        "when should i submit",
+        "when should i send"
+      ],
+      "en": "On claim {case_id}, please send {documents} within the week."
+    },
+    {
+      "topic": "processing_time_after_submission",
+      "intent_hints": [
+        "document_submission",
+        "next_steps",
+        "status_inquiry",
+        "general_claim_question"
+      ],
+      "requires_documents": true,
+      "match_any": [
+        "how long",
+        "how soon",
+        "processing time",
+        "review time",
+        "once i submit",
+        "after i submit",
+        "after i send",
+        "after you receive",
+        "how long does it take"
+      ],
+      "en": "Once the outstanding files for claim {case_id} arrive, the review restarts rather than concluding on the spot. Turnaround is {average_processing_time_after_submission}, though intake and a further review cycle may still run before the status moves. Where {documents} arrive incomplete or unclear, the team may come back for more before revisiting the denial."
+    },
+    {
+      "topic": "submission_method",
+      "intent_hints": [
+        "document_submission"
+      ],
+      "requires_documents": true,
+      "match_any": [
+        "how do i submit",
+        "where do i submit",
+        "where should i send",
+        "how should i send",
+        "portal",
+        "upload link"
+      ],
+      "en": "On claim {case_id}, the member portal or the claim upload link is usually the best starting point, as it keeps {documents} attached to the file. Where online upload is unavailable, support can arrange fax or postal handling."
+    },
+    {
+      "topic": "file_format_requirements",
+      "intent_hints": [
+        "document_submission"
+      ],
+      "requires_documents": true,
+      "match_any": [
+        "format",
+        "file type",
+        "photo",
+        "scan",
+        "pdf",
+        "image",
+        "clear enough",
+        "pdf"
+      ],
+      "en": "On claim {case_id}, every upload should be legible, complete, and straightforward to review. Prepare the files currently outstanding according to their own requirements: {documents}. Where a particular document carries more detailed guidance, that guidance takes precedence."
+    },
+    {
+      "topic": "receipt_confirmation",
+      "intent_hints": [
+        "document_submission",
+        "next_steps"
+      ],
+      "requires_documents": true,
+      "match_any": [
+        "how do i know you got it",
+        "will i get confirmation",
+        "confirm receipt",
+        "show up in status"
+      ],
+      "en": "After the outstanding files for claim {case_id} are uploaded, a short intake delay can pass before the status catches up. If the claim still looks untouched after a few working days, support can confirm whether {documents} attached correctly."
+    }
+  ],
+  "claim_followup_fallback": {
+    "en": "There is no claim-specific rule on file for that particular follow-up. What you can reasonably expect is that once the missing files arrive and can be read, the claim returns to review, and another review cycle may still be needed before the status moves."
+  }
+}
