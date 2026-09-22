@@ -22,3 +22,18 @@ variable "allowed_cidr" {
     error_message = "allowed_cidr must be valid CIDR notation, such as 203.0.113.4/32."
   }
 }
+
+# Set explicitly rather than derived, so the running revision always names an
+# exact image. In a pipeline this is supplied by CI from the build commit.
+variable "image_tag" {
+  description = "Git SHA tag of the image in ECR to run."
+  type        = string
+}
+
+# Set to 0 to park the deployment: the task stops and Fargate compute and the
+# public IPv4 charge both end, while the rest of the stack stays intact.
+variable "desired_count" {
+  description = "Number of tasks the service keeps running."
+  type        = number
+  default     = 1
+}
