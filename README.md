@@ -58,6 +58,50 @@ cheaper.
 message through the HTTP API to prove the container answers, not just that
 it starts.
 
+## Deployment
+
+The image runs on ECS Fargate in us-east-1, on ARM64. The Terraform that
+builds the environment is in `infra/`, and `infra/README.md` is the runbook
+for bringing it up from nothing. `DEPLOY_NOTES.md` records the decisions and
+the near-misses.
+
+- The image lives in a private ECR repository, tagged with the git SHA it was
+  built from. Tags are immutable, so a task definition revision names exactly
+  one image, and a rollback is a matter of pointing at the previous tag.
+- The Anthropic API key is held in Secrets Manager. Terraform creates the
+  secret container and never the version, so the key is in no `.tf` file and
+  not in Terraform state. The value is written once with
+  `aws secretsmanager put-secret-value`. ECS resolves it at container start
+  and injects it as `ANTHROPIC_API_KEY`.
+- The task execution role carries the AWS-managed ECS execution policy plus
+  an inline statement permitting `secretsmanager:GetSecretValue` on that one
+  secret ARN. There is no task role, because the application calls no AWS
+  APIs.
+- Container output goes to a CloudWatch log group with seven-day retention.
+  There is no container health check, so the startup log is the only place a
+  missing key or an unrunnable image becomes visible.
+- There is no load balancer. The task runs in a public subnet with a public
+  IP, which is also its only outbound route to ECR, Secrets Manager and the
+  model API, since the deployment has no NAT Gateway.
+
+### Limitations
+
+The shape of this deployment is a deliberate trade against cost. What the
+trade actually costs:
+
+- Traffic is plain HTTP. Conversation content crosses the internet in
+  cleartext. The fixtures are synthetic so nothing real is exposed, but this
+  is the first thing to fix. An ALB with an ACM certificate would also give
+  a stable hostname, which this deployment does not have: the endpoint is
+  the task's public IP and it changes whenever the task is replaced.
+- One task in one availability zone. An AZ event is a total outage.
+- Sessions live in process memory. A deploy, a task replacement or a crash
+  drops every conversation in flight. Running more than one task would
+  require moving session state out of the process first.
+- The container runs as root. Nothing in the image requires it.
+- Terraform state is a local file with no remote backend and no locking.
+  Safe for one operator, wrong for two.
+
 ## Try the main path by hand
 
 Type these in order. The right-hand panel shows the phase after each one.
@@ -70,7 +114,15 @@ Type these in order. The right-hand panel shows the phase after each one.
    the denial reason from the record in the same breath. Phase:
    PROCESS_CASE.
 
-   <!-- TODO: paste a real reply from the deployed instance here. -->
+   The reply from the deployed instance, 2026-09-22:
+
+   > You're verified, Nadia. I've got claim CLM-7710, your healthcare claim
+   > filed July 14, 2026, showing as denied.
+   >
+   > It was denied because the review file didn't include the lab result
+   > letter or the visit summary from your treating clinician. So it's a
+   > missing documents decision rather than anything about the treatment
+   > itself. There's an appeal route open if you want me to go into that.
 
 2. `How do I submit those documents?`
 
