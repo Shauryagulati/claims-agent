@@ -36,7 +36,7 @@ def test_norm_name(raw, expected):
     "raw, expected",
     [
         ("Nadia@Email.com", "nadia@email.com"),
-        ("  a.kovac@gmail.com ", "a.kovac@gmail.com"),
+        ("  a.kovac@example.net ", "a.kovac@example.net"),
         ("not an email", None),
         ("", None),
         (None, None),

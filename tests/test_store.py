@@ -87,7 +87,7 @@ def test_name_lookup_basic_and_misses(store):
 
 @pytest.mark.parametrize(
     "raw",
-    ["a.kovac@gmail.com", "A.Kovac@Gmail.com", "a.kovac@example.com", " A.KOVAC@EXAMPLE.COM "],
+    ["a.kovac@example.net", "A.Kovac@Example.net", "a.kovac@example.com", " A.KOVAC@EXAMPLE.COM "],
 )
 def test_email_lookup_normalises_both_input_and_aliases(store, raw):
     assert [p.party_id for p in store.policyholders_by_email(raw)] == ["PH-4045"]
@@ -115,7 +115,7 @@ def test_alias_tuples_include_primary_first(store):
     kovac = store.policyholder_by_party("PH-4045")
     assert kovac.all_names[0] == "Ann Marie Kovac"
     assert "Annmarie Kovac" in kovac.all_names
-    assert kovac.all_emails == ("a.kovac@gmail.com", "a.kovac@example.com")
+    assert kovac.all_emails == ("a.kovac@example.net", "a.kovac@example.com")
     nadia = store.policyholder_by_party("PH-4021")
     assert nadia.all_names == ("Nadia Okonkwo",)
     assert nadia.all_phones == ("+14155550182",)

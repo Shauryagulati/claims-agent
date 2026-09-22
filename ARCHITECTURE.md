@@ -1,8 +1,8 @@
 # ARCHITECTURE.md
 
 Design spec for the SOP-guided insurance claims support agent. Decisions and
-their rationale are in NOTES.md. Scope is REQUIREMENTS.md as narrowed by
-CLAUDE.md. This document says what gets built and how the pieces fit.
+their rationale are in NOTES.md. PROJECT.md covers what the system is and
+why. This document says what gets built and how the pieces fit.
 
 ## 1. Goal in one paragraph
 
@@ -484,7 +484,7 @@ escalate-at thresholds because nothing escalates without `wants_human`.
 
 ## 11. Testing
 
-Unit tests, no network, run with `.venv/bin/pytest`:
+Unit tests, no network, run with `python -m pytest`:
 
 - `test_normalize.py`: every normaliser, including the alias cases from the
   fixtures and the date formats listed above.
@@ -523,7 +523,7 @@ Unit tests, no network, run with `.venv/bin/pytest`:
   VERIFY_ID.
 - `test_memory.py`: merge never clears, corrections win, provenance recorded.
 
-Live eval, needs the API key, run with `.venv/bin/python -m eval.run`:
+Live eval, needs the API key, run with `python -m eval.run`:
 `eval/scenarios.py` holds scripted conversations with assertions on phase,
 memory, and gate outcomes after each turn, plus a few string-level checks
 that the reply in VERIFY_ID contains none of the claim's denial reason,
@@ -534,7 +534,7 @@ its transcript so the README can quote real output. Scenarios:
    document follow-up, wrap-up, then one more claim question after the
    email offer (asserting POST_PROCESS returns to PROCESS_CASE and the
    offer is repeated), then email yes.
-2. Nadia angry caller: the bonus example first, then verification, then
+2. Nadia angry caller: the pressure line first, then verification, then
    the same flow.
 3. Irene Bauer (PH-4033 / CLM-7915): identity supplied over several turns. Name and
    policy number first, then "why do you need my date of birth?" (asserting
@@ -554,14 +554,19 @@ its transcript so the README can quote real output. Scenarios:
    caller can then verify normally.
 7. Typo recovery: Nadia with a wrong date of birth, the no-field-named
    mismatch reply, corrected date, verified.
+8. Transfer question: asking whether human agents exist is answered as a
+   question; only an explicit request to be transferred is a handoff.
 
 ## 12. Packaging
 
 `Dockerfile` on `python:3.11-slim`, copies `app/`, `data/`, `requirements.txt`,
 installs, runs uvicorn on 8000. `docker run -e ANTHROPIC_API_KEY=... -p
-8000:8000 <image>`. README covers local run, Docker run, the scenario switch,
-the six scripted scenarios with what to type, and a short architecture
-summary pointing here.
+8000:8000 <image>`. README covers the turn loop, the phases, grounding, how
+it is tested, the local and Docker runs, the deployment, and the limitations.
+
+`infra/` holds Terraform for an ECS Fargate deployment on ARM64, with the
+image in ECR and the API key in Secrets Manager. `infra/README.md` is the
+runbook; `DEPLOY_NOTES.md` records what the decisions cost.
 
 ## 13. Build order
 

@@ -1,7 +1,7 @@
 """One-off check that the configured model IDs and request shapes work.
 
 Not part of the test suite. Makes two real API calls and prints the result.
-Run: .venv/bin/python scripts/smoke_models.py [--extractor-only]
+Run: python scripts/smoke_models.py [--extractor-only]
 """
 
 from __future__ import annotations

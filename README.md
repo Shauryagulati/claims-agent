@@ -1,221 +1,280 @@
 # claims-agent
 
-An SOP-guided insurance claims support agent. A fixed four-phase workflow,
-VERIFY_ID, RESOLVE_INTENT, PROCESS_CASE, POST_PROCESS, is enforced by a pure
-Python state machine. The language model is used for exactly two things per
-turn: reading the caller's message into a typed structure, and phrasing a
-reply from facts and instructions the state machine chose. The model never
-sees claim data before verification and never decides the phase.
+An insurance claims support agent where the business process is enforced in
+Python, not in the prompt.
 
-What it is and why it is built this way: `PROJECT.md`. Design:
-`ARCHITECTURE.md`. Decisions and their reasoning: `NOTES.md`.
+The model does two things per turn. It reads the caller's message into a
+typed structure, and it phrases a reply from facts and instructions that were
+chosen before it was called. It does not decide which step of the
+conversation it is on. It is not given claim data it has not been cleared to
+disclose. Neither of those is an instruction the model is asked to follow.
+The phase comes from a state machine that never consults it, and before
+identity is verified the claim record is not in the prompt at all, so there
+is nothing to leak.
 
-## Setup
+The tension worth solving here is specific. A claims process has hard
+constraints: do not discuss a claim with someone whose identity has not been
+established, do not invent a denial reason, do not skip the consent step when
+a family member calls on a policyholder's behalf. Callers, meanwhile, type
+like people. They answer partially, out of order, sometimes angrily, often
+two questions ahead of the one they were asked. A system rigid enough to be
+safe usually stops being usable. A system built on prompt instructions alone
+is neither.
 
-Python 3.11.
+## Seeing it work
 
-    pip install -r requirements.txt
-    cp .env.example .env        # then put your Anthropic API key in .env
+The running app has a debug panel beside the chat. It exists so the behaviour
+can be checked rather than believed.
 
-`requirements.txt` is hand-maintained. Do not regenerate it with `pip freeze`.
+![The chat on the left, the debug panel on the right, showing phase, counters, memory, directives and facts](docs/debug-panel.png)
 
-The tests need no key and no network:
+This is the representative path, two turns in. Julian has called about his
+mother's policy. Her identity was confirmed from the details he supplied, his
+relationship was checked against the account, and a consent request went to
+her; the panel shows it has come back approved.
+
+Two things in that panel are the whole design. Under MEMORY, every value
+carries the turn it was learned on, including ones the caller volunteered
+before they were relevant. Under FACTS GIVEN TO THE RESPONDER it says **none
+in this phase** — the model is being asked to pose a question and has been
+handed no claim data to do it with. The four claims it names come from the
+`ASK_HOW_CAN_I_HELP` directive, because the state machine found the request
+ambiguous and chose to ask rather than guess.
+
+## The turn loop
+
+Every turn runs the same five steps. Two call a model. Three are ordinary
+Python.
+
+```mermaid
+flowchart TD
+    IN([caller message]) --> EX["extract<br>message into a typed Extraction"]
+    EX --> MERGE["merge<br>Extraction into CaseMemory"]
+    MERGE --> STEP["step<br>gates, phase, directives, facts"]
+    STEP --> RESP["respond<br>phrase the directives and facts"]
+    RESP --> COMMIT["commit<br>state, transcript, tool effects"]
+    COMMIT --> OUT([reply])
+
+    classDef model fill:#dbeafe,stroke:#1d4ed8,color:#172554
+    classDef py fill:#f1f5f9,stroke:#64748b,color:#0f172a
+    class EX,RESP model
+    class MERGE,STEP,COMMIT py
+```
+
+Blue is a model call. Grey is deterministic code.
+
+**extract** runs on every turn regardless of phase. It reads the message into
+a typed `Extraction` and nothing else. If it fails, the turn continues with an
+empty extraction.
+
+**merge** folds that into one shared `CaseMemory`, recording which turn each
+value arrived on. This is why "I'm calling about my denied claim from July",
+said during identity verification, still works once verification finishes. The
+hint was stored when it was said, not when it became useful. Corrections
+overwrite and invalidate what depended on them.
+
+**step** is the state machine. It runs the gates, decides the phase, and
+produces two lists: directives saying what the reply must do, and facts the
+reply is allowed to use. It never calls a model.
+
+**respond** phrases those directives and facts. It receives no claim record,
+only what step handed it.
+
+**commit** writes the new state, the transcript, and any tool effects. Nothing
+is committed unless the responder succeeded. A failed responder returns a
+fallback line and leaves the session exactly as it was.
+
+## The four phases
+
+The state machine moves through four phases, plus two exits. The model cannot
+advance it, skip it, or be argued out of it, because it is never asked.
+
+| Phase | Entered when | What gates it |
+|---|---|---|
+| VERIFY_ID | Session start | `verify_identity` requires at least three matching PII fields and zero mismatches. A pure function with unit tests. The policy number locates the record but does not count toward the three. A representative additionally needs a relationship on file and an approved consent request. |
+| RESOLVE_INTENT | Identity verified, consent approved if applicable | The resolver must narrow the remembered hints to exactly one claim. Ambiguity produces a question listing the candidates, not a guess. |
+| PROCESS_CASE | One claim resolved | Answers are built from deterministic retrieval. The responder is handed fact rows, never the claim record. |
+| POST_PROCESS | The caller signals they are done | The email summary's status block is written from the record. Model prose is used only if it passes a grounding check. |
+
+The exits are ESCALATED, when the caller asks for a person, and CLOSED. The
+agent never escalates on its own initiative; it offers, and waits to be
+asked. Escalation is reversible, so a session survives a handoff.
+
+Intent is an enum of exactly five labels, and those labels are the
+`intent_hints` values in the guideline file rather than a separate list that
+can drift from it.
+
+## How grounding works
+
+Follow-up answers come from deterministic retrieval over
+`data/required_document_guideline.json` and the claim record. Retrieval picks
+the entry, fills a template, and produces fact rows. The model is handed
+filled text to rephrase. It is not asked what the policy is.
+
+The consequence is that every sentence in a grounded reply traces back to a
+row you can see in the panel. When no guideline entry matches, retrieval
+falls back rather than inventing one, and the fallback is a path the fixtures
+deliberately exercise.
+
+The emailed summary is stricter again. Amounts, dates and status are written
+from the record. The model is asked to smooth the prose, the result is
+checked against the draft, and if the check fails the template text is sent
+instead.
+
+## How it is tested
+
+Two layers, because they catch different things.
+
+**361 offline tests**, no API key and no network. Every deterministic module
+ships with its own tests: gates, memory merging and invalidation, retrieval,
+the resolver, the state machine, email assembly. The agent-level tests use a
+fake LLM, so the state machine is exercised without a model in the loop.
 
     python -m pytest -q
 
-## Run locally
-
-    python -m uvicorn app.main:app --port 8000
-
-Open http://localhost:8000. The left side is the chat. The right side is a
-debug panel showing the current phase, what the agent remembers and when it
-learned it, the instructions its last reply was built from, and the facts it
-was allowed to use. That panel is how you can see the SOP working rather
-than take the reply's word for it.
-
-The scenario selector switches the simulated consent service between
-`default` (approves on the second check) and `consent timeout` (never
-approves). It only matters for the representative path below.
-
-Models default to `claude-sonnet-5` for extraction and `claude-opus-5` for
-replies. Override with `EXTRACTOR_MODEL` and `RESPONDER_MODEL` in `.env`.
-The insurer name is configurable too, via `BRAND_NAME`; nothing in the logic
-depends on it. The agent's notion of today is fixed at 2026-09-18 so the
-sample data reads consistently: every claim is in the past and both appeal
-deadlines are live.
-
-## Docker
-
-    docker build -t claims-agent .
-    docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY=sk-ant-... claims-agent
-
-Then open http://localhost:8000. The key is passed at run time and is not
-in the image; the container fails fast at startup with a readable message
-if it is missing. Optional: `-e RESPONDER_MODEL=claude-sonnet-5` to run
-cheaper.
-
-`scripts/docker_check.sh` builds the image, runs it, and sends the opening
-message through the HTTP API to prove the container answers, not just that
-it starts.
-
-## Deployment
-
-The image runs on ECS Fargate in us-east-1, on ARM64. The Terraform that
-builds the environment is in `infra/`, and `infra/README.md` is the runbook
-for bringing it up from nothing. `DEPLOY_NOTES.md` records the decisions and
-the near-misses.
-
-- The image lives in a private ECR repository, tagged with the git SHA it was
-  built from. Tags are immutable, so a task definition revision names exactly
-  one image, and a rollback is a matter of pointing at the previous tag.
-- The Anthropic API key is held in Secrets Manager. Terraform creates the
-  secret container and never the version, so the key is in no `.tf` file and
-  not in Terraform state. The value is written once with
-  `aws secretsmanager put-secret-value`. ECS resolves it at container start
-  and injects it as `ANTHROPIC_API_KEY`.
-- The task execution role carries the AWS-managed ECS execution policy plus
-  an inline statement permitting `secretsmanager:GetSecretValue` on that one
-  secret ARN. There is no task role, because the application calls no AWS
-  APIs.
-- Container output goes to a CloudWatch log group with seven-day retention.
-  There is no container health check, so the startup log is the only place a
-  missing key or an unrunnable image becomes visible.
-- There is no load balancer. The task runs in a public subnet with a public
-  IP, which is also its only outbound route to ECR, Secrets Manager and the
-  model API, since the deployment has no NAT Gateway.
-
-### Limitations
-
-The shape of this deployment is a deliberate trade against cost. What the
-trade actually costs:
-
-- Traffic is plain HTTP. Conversation content crosses the internet in
-  cleartext. The fixtures are synthetic so nothing real is exposed, but this
-  is the first thing to fix. An ALB with an ACM certificate would also give
-  a stable hostname, which this deployment does not have: the endpoint is
-  the task's public IP and it changes whenever the task is replaced.
-- One task in one availability zone. An AZ event is a total outage.
-- Sessions live in process memory. A deploy, a task replacement or a crash
-  drops every conversation in flight. Running more than one task would
-  require moving session state out of the process first.
-- The container runs as root. Nothing in the image requires it.
-- Terraform state is a local file with no remote backend and no locking.
-  Safe for one operator, wrong for two.
-
-## Try the main path by hand
-
-Type these in order. The right-hand panel shows the phase after each one.
-
-1. `I'm the policyholder. My name is Nadia Okonkwo, policy POL-3318. I'm calling about my denied healthcare claim from July. DOB is 1987-06-09, SSN last four is 2907.`
-
-   Three matching details verify her; the policy number locates the record
-   but does not count toward the three. The remembered hint resolves the
-   July 2026 denied healthcare claim without asking, and the reply gives
-   the denial reason from the record in the same breath. Phase:
-   PROCESS_CASE.
-
-   The reply from the deployed instance, 2026-09-22:
-
-   > You're verified, Nadia. I've got claim CLM-7710, your healthcare claim
-   > filed July 14, 2026, showing as denied.
-   >
-   > It was denied because the review file didn't include the lab result
-   > letter or the visit summary from your treating clinician. So it's a
-   > missing documents decision rather than anything about the treatment
-   > itself. There's an appeal route open if you want me to go into that.
-
-2. `How do I submit those documents?`
-
-   Answered from the guideline data. The panel's facts box shows the
-   guideline entry that was retrieved and the document requirements.
-
-3. `That's all I needed, thanks.`
-
-   The agent offers to email a summary to the masked address on file.
-   Phase: POST_PROCESS.
-
-4. `Oh wait, one more thing. When is the appeal deadline?`
-
-   Back to PROCESS_CASE; the deadline is stated with days remaining.
-
-5. `Okay, that's everything.` then `Yes please, send it.`
-
-   The email is "sent": the panel's email log shows the full body. The
-   status block, including every amount, is written from the record; the
-   prose is model-smoothed only if it passes a grounding check, otherwise
-   the template text is sent.
-
-## Other things to try
-
-- Pressure before verifying: `I already told you who I am. This is
-  ridiculous. Just tell me why my claim was denied.` The agent acknowledges,
-  explains why verification is required, offers the accepted details, notes
-  the question for after verification, and discloses nothing. It never
-  escalates on its own; say `connect me to a person` to hand off.
-- A representative: `Hi, I'm Julian Okonkwo, calling on behalf of my mother
-  Nadia Okonkwo, policy POL-3318. Her date of birth is June 9, 1987 and
-  her phone is 415-555-0182.` Her details verify, his relationship is
-  checked against the account, and a consent request goes to her. Then
-  `Can you check again?` With the `consent timeout` scenario selected, ask
-  for an update six times to see the plain not-received message and the
-  human offer, with no persuasion.
-- Off topic: ask `What is reinforcement learning?` three times. The session
-  survives, a human is offered from the second time, and you can still
-  verify afterwards.
-- A typo: `Nadia Okonkwo, policy POL-3318, DOB 1987-06-10, SSN last four
-  2907.` The agent says the details do not match without saying which, and
-  `Sorry, my date of birth is 1987-06-09.` verifies.
-- Irene Bauer (`POL-7194`, born 1961-04-22, national ID ending 8450) is a
-  second complete path with a different ID type and a missing document that
-  has no specific guidance on file.
-- `Do you have human agents?` is answered as a question. `Please transfer
-  me to a person` is the request.
-
-## Scripted live eval
-
-Eight scripted conversations with assertions on phase, memory, directives,
-and facts after every turn. Wording is never asserted, except that certain
-strings must be absent from replies given before verification. Needs the
-key. A full pass costs well under a dollar.
+**Eight scripted live scenarios** against the real API, asserting phase,
+memory, directives and facts after every turn. Wording is never asserted,
+with one exception: certain strings must be absent from any reply given
+before verification. A full pass costs well under a dollar.
 
     python -m eval.run                 # all eight
     python -m eval.run rep_timeout     # any subset by name
     python -m eval.run --list
 
-A failing scenario does not stop the run. Token usage and an estimated cost
-are printed per scenario, and a transcript per scenario is written to
-`eval/transcripts/` as plain dialogue with a one-line state annotation after
-each reply.
+The eight cover the happy path, an angry caller who tries to skip
+verification, partial answers across turns with a national ID and a retrieval
+fallback, the representative path with consent approved, the same path with
+consent that never arrives, three off-topic turns that do not end the
+session, a mistyped date of birth and its correction, and the difference
+between asking about human agents and asking for one.
+
+## Running it
+
+Python 3.11.
+
+    pip install -r requirements.txt
+    cp .env.example .env        # add your Anthropic API key
+    python -m uvicorn app.main:app --port 8000
+
+Or in Docker:
+
+    docker build -t claims-agent .
+    docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY=sk-ant-... claims-agent
+
+Then open http://localhost:8000. The key is passed at run time and is not in
+the image. The container exits immediately with a readable message if it is
+missing.
+
+`scripts/docker_check.sh` builds the image, runs it, and sends one real
+message through the HTTP API, to prove the container answers rather than
+merely starts.
+
+The agent's notion of today is fixed at 2026-09-18 so the sample data reads
+consistently. Every claim is in the past and both appeal deadlines are live.
+
+### Things to type
+
+Start with the policyholder path:
+
+> I'm the policyholder. My name is Nadia Okonkwo, policy POL-3318. I'm calling
+> about my denied healthcare claim from July. DOB is 1987-06-09, SSN last four
+> is 2907.
+
+Three details verify her, and the July hint resolves the claim without a
+follow-up question. The deployed instance answered:
+
+> You're verified, Nadia. I've got claim CLM-7710, your healthcare claim filed
+> July 14, 2026, showing as denied.
+>
+> It was denied because the review file didn't include the lab result letter
+> or the visit summary from your treating clinician. So it's a missing
+> documents decision rather than anything about the treatment itself. There's
+> an appeal route open if you want me to go into that.
+
+Then `How do I submit those documents?` to see retrieval, `That's all I
+needed, thanks.` to reach the email offer, and `Oh wait, one more thing. When
+is the appeal deadline?` to watch the phase move back.
+
+Other paths worth trying:
+
+- Pressure before verifying: `I already told you who I am. This is
+  ridiculous. Just tell me why my claim was denied.` It acknowledges the
+  frustration, explains why verification is required, notes the question for
+  later, and discloses nothing.
+- A representative: `Hi, I'm Julian Okonkwo, calling on behalf of my mother
+  Nadia Okonkwo, policy POL-3318. Her date of birth is June 9, 1987 and her
+  phone is 415-555-0182.` Switch the scenario selector to `consent timeout`
+  and ask for an update six times to see the version where consent never
+  arrives.
+- A typo: `Nadia Okonkwo, policy POL-3318, DOB 1987-06-10, SSN last four
+  2907.` It says the details do not match without saying which one.
+- Off topic: ask `What is reinforcement learning?` three times. The session
+  survives and you can still verify afterwards.
+
+## Deployment
+
+The image runs on ECS Fargate on ARM64. The Terraform is in `infra/`, and
+`infra/README.md` is the runbook for building it from nothing.
+
+- The image is in a private ECR repository, tagged with the git SHA it was
+  built from. Tags are immutable, so a task definition revision names exactly
+  one image and a rollback is a matter of pointing at the previous tag.
+- The API key is in Secrets Manager. Terraform creates the secret container
+  and never the version, so the key is in no `.tf` file and not in Terraform
+  state. The value is written separately with the AWS CLI. ECS resolves it at
+  container start.
+- The execution role carries the AWS-managed ECS execution policy plus an
+  inline statement permitting `secretsmanager:GetSecretValue` on that one
+  secret ARN. There is no task role, because the application calls no AWS
+  APIs.
+- Container output goes to CloudWatch with seven-day retention. There is no
+  container health check, so the startup log is where a missing key or an
+  unrunnable image becomes visible.
+- There is no load balancer. The task runs in a public subnet with a public
+  IP, which is also its only outbound route, since there is no NAT Gateway.
+
+`DEPLOY_NOTES.md` records what the decisions cost and where they nearly went
+wrong, including an architecture mismatch that would have presented as an
+application bug.
+
+## Limitations
+
+The deployment is shaped by cost, and the application is a demonstration.
+Both have consequences worth stating plainly.
+
+- Traffic is plain HTTP. Conversation content crosses the internet in
+  cleartext. The fixtures are synthetic so nothing real is exposed, but this
+  is the first thing to fix. An ALB with a certificate would also give a
+  stable hostname, which this deployment does not have.
+- One task in one availability zone. An AZ event is a total outage.
+- Sessions live in process memory. A deploy, a task replacement or a crash
+  drops every conversation in flight. Running more than one task would mean
+  moving session state out of the process first.
+- The container runs as root. Nothing in the image requires it.
+- Terraform state is a local file with no remote backend and no locking.
+- The email step is mocked and logged. There is no email provider.
+- The fixtures are read-only JSON. There is no database, and nothing written
+  during a conversation survives it.
 
 ## Layout
 
-    app/        the agent: config, store, normalize, memory, gates, resolver,
-                retrieval, tools, email_summary, fsm, prompts, llm, agent,
-                session, main, static/index.html
+    app/        config, store, normalize, memory, gates, resolver, retrieval,
+                tools, email_summary, fsm, prompts, llm, agent, session, main,
+                static/index.html
     data/       synthetic fixtures: policyholders, claims, guidelines
-    eval/       scripted live scenarios and the runner
-    tests/      pytest suite, no network
+    eval/       the eight live scenarios and their runner
+    tests/      the offline suite
+    infra/      Terraform for the Fargate deployment
     scripts/    docker_check.sh, smoke_models.py
 
-## The fixtures and what they drive
+The six files in `data/` are synthetic. They are shaped to exercise specific
+branches rather than to resemble a production export: a policyholder with
+four claims and another with none, two claims of the same type in the same
+month of different years, a national ID holder alongside SSN holders, a name
+that only matches through an alias, a representative whose consent can time
+out, and a denied claim whose missing document has no guidance entry, so the
+fallback is reachable.
 
-All six files in `data/` are synthetic. No real person, policy, or claim is
-represented. They are shaped to exercise specific branches rather than to
-look like a production export.
-
-| File | Used by | For |
-|---|---|---|
-| `policyholders.json` | `store`, `gates` | Identity verification: five PII fields, aliases, and `id_type` (SSN vs national ID) |
-| `claims.json` | `store`, `resolver`, `retrieval`, `email_summary` | Claim lookup, disambiguation by type, status, and date, the facts block, the email status block |
-| `required_document_guideline.json` | `retrieval` | Grounded follow-up answers: intent and keyword rules, document guidance, alternatives, fallback |
-| `representatives.json` | `store`, `gates`, `fsm` | The representative path: who may call on whose behalf |
-| `consent_scenarios.json` | `tools`, `fsm` | The simulated consent service, including the timeout branch |
-| `claim_schema.json` | `store`, `retrieval` | Descriptions attached to money fields so amounts are explained, not just read |
-
-The edge cases the fixtures deliberately carry: a policyholder with four
-claims and another with none; two claims of the same type in the same month
-of different years, so month-only hints have to be disambiguated; a national
-ID holder alongside SSN holders; a name and email that only match through
-aliases; a representative with a consent step that can time out; and a
-denied claim whose missing document has no specific guidance entry, so the
-fallback path is reachable.
+`PROJECT.md` covers what this is and why. `ARCHITECTURE.md` describes how the
+pieces fit. `NOTES.md` records the decisions and the reasoning, including the
+ones that were wrong the first time.

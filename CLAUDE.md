@@ -21,13 +21,12 @@ The email send is mocked and logged; there is no real email provider.
 - Intent enum is exactly the five intent_hints labels in that file.
 - DEMO_NOW = 2026-09-18 in config. Never the real system date.
 
-## Working rules
-- Show me a plan before writing code. Wait for approval.
-- One concern per session.
+## Conventions
 - Every deterministic module ships with pytest tests in tests/.
-- data/ holds synthetic fixtures. Changing one means updating tests and eval scenarios with it.
-- Use the conda env `dev`: /opt/anaconda3/envs/dev/bin/python and `python -m pytest`.
-  Do not create a .venv in this repo.
+- data/ holds synthetic fixtures. Changing one means updating tests and eval
+  scenarios with it.
+- Tests run with `python -m pytest`; the live eval runs with `python -m eval.run`.
 - requirements.txt is hand-maintained. Never regenerate it with pip freeze.
 - Prose in docs. No emoji.
-- PROJECT.md describes what this system does and why. Re-read it before any planning step.
+- PROJECT.md describes what this system does and why. ARCHITECTURE.md describes
+  how the pieces fit. NOTES.md is the decision log.

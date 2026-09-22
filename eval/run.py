@@ -1,8 +1,8 @@
 """Live eval runner.
 
-    .venv/bin/python -m eval.run                 # all scenarios
-    .venv/bin/python -m eval.run rep_timeout     # one or more by name
-    .venv/bin/python -m eval.run --list
+    python -m eval.run                 # all scenarios
+    python -m eval.run rep_timeout     # one or more by name
+    python -m eval.run --list
 
 A failing turn is recorded and the scenario continues; a failing scenario is
 recorded and the run continues. Exit code is 1 if anything failed. One

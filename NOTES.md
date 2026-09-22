@@ -187,7 +187,7 @@ why the step exists and offer other ID fields; every refusal after, explain
 again and offer a human transfer. The ladder never escalates on its own; see
 D11.
 
-Why: The bonus asks the agent to acknowledge, explain, offer alternatives, and
+Why: The agent has to acknowledge, explain, offer alternatives, and
 know when to stop, all without bypassing gates. Keeping emotion as prompt
 input rather than state keeps the FSM small and keeps the safety argument in
 D1 intact.
@@ -441,9 +441,9 @@ change.
 
 ## Fixture quirks noticed
 
-- `claim_schema.json` calls this an "insurance audio agent demo" and phones are
-  in E.164. The deliverable is text. The turn loop takes text in and returns
-  text out, so a voice transport could wrap it without changes.
+- Phone numbers in the fixtures are in E.164. This agent is text, but the
+  turn loop takes text in and returns text out, so a voice transport could
+  wrap it without changes.
 - `documents_needed` uses "lab result letter" but `document_guidance` is keyed
   by "original lab result letter". Retrieval matches document names by
   substring in both directions.
@@ -452,15 +452,16 @@ change.
   tolerant lookups; a closed or open claim must render without them.
 - PH-4033 / CLM-7915 is a second full test path and is in the eval suite: Irene Bauer
   verifies with a national ID last four rather than SSN, the claim is a
-  denied healthcare claim, and its `documents_needed` value "diagnosis
-  report" has no matching `document_guidance` or
+  denied healthcare claim, and its `documents_needed` value "referral
+  letter" has no matching `document_guidance` or
   `document_alternative_guidance` key, so it exercises the default guidance
   and the retrieval fallback rather than a document-specific entry.
 - PH-4045 has a `phone_aliases` entry identical to the primary phone. Harmless.
 - Representatives have no PII of their own, which is what forces D4.
-- Nadia Okonkwo has four claims spanning three types and three statuses, which
-  is what makes the "denied healthcare from January" hint a real
-  disambiguation test rather than a formality.
+- Nadia Okonkwo has four claims spanning three types and three statuses, two
+  of them healthcare claims filed in July of different years, which is what
+  makes the "denied healthcare from July" hint a real disambiguation test
+  rather than a formality.
 
 ## D-future-1: typed-decision models for the extractor, evaluated not adopted
 
